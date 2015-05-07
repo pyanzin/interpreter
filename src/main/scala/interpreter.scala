@@ -21,21 +21,22 @@ case class Context(
   var dataSet: Map[String, JValue]
 )
 
-case class Call(func: Func, args: List[JValue]) extends Expr {
+case class Call(func: Expr, args: List[Expr]) extends Expr {
   def eval(context: Context): JValue = {
-  	val dataset = func.args.zipAll(args, "", Undefined).toMap
+    val function = func.eval(context).asInstanceOf[Func]
+  	val dataset = function.args.zipAll(args.map(_.eval(context)), "", Undefined).toMap
   	val newContext = Context(Some(context), dataset)
-    func.body.eval(newContext)
+    function.body.eval(newContext)
   }
 }
 
-case class Selector(id: String) extends Expr {
+case class Selector(ids: List[String]) extends Expr {
   def eval(context: Context) = {
-    context.dataSet(id)
+    context.dataSet(ids.head)
   }
 
   def assign(context: Context, value: JValue) = {
-    context.dataSet = context.dataSet ++ Map(id -> value)
+    context.dataSet = context.dataSet ++ Map(ids.head -> value)
   }
 }
 
