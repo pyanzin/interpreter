@@ -7,7 +7,7 @@ class JParser extends JavaTokenParsers {
   def number[JNumber] = floatingPointNumber ^^
     { case x => JNumber(x.toDouble) }
 
-  def selector[Selector] = repsep(ident, ".") ^^
+  def selector[Selector] = rep1sep(ident, ".") ^^
     { case xs => Selector(xs.reverse.toList) }
 
   def call: Parser[Call] = simpleExpr ~ ("(" ~> repsep(expr, ",") <~ ")") ^^
