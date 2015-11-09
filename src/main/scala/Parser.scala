@@ -10,16 +10,29 @@ class JParser extends JavaTokenParsers {
   def selector[Selector] = repsep(ident, ".") ^^
     { case xs => Selector(xs.reverse.toList) }
 
-  def call[Call] = expr ~ ("(" ~> repsep(expr, ",") <~ ")") ^^
-    { case expr ~ args => Call(expr, args) }
+  def call: Parser[Call] = simpleExpr ~ ("(" ~> repsep(expr, ",") <~ ")") ^^
+    { case ex ~ args => Call(ex, args) }
 
-  def func[Func] = ("function" ~> "(" ~> repsep(ident, ",") <~ ")" <~ "=") ~ expr ^^
-    { case args ~ expr => Func(args, expr) }
+  def func: Parser[Func] = ("function" ~> "(" ~> repsep(ident, ",") <~ ")" <~ "=") ~ expr ^^
+    { case args ~ ex => Func(args, ex) }
 
-  def operator[String] = "+" | "-" | "*" | "/"
+  def operator: Parser[String] = "+" | "-" | "*" | "/"
 
-  def op[Op] = expr ~ operator ~ expr ^^ 
+  def op: Parser[Op] = simpleExpr ~ operator ~ expr ^^ 
     { case a ~ op ~ b => Op(op, a, b) }
 
-  def expr[Expr] = number | string | selector 
+  def expr[Expr] = func | ifElse | assign | call | block | op | number | string | selector 
+
+  def stmts: Parser[Block] = repsep(expr, ";") <~ opt(";") ^^
+    { case exprs => Block(exprs) }
+
+  def block[Block] = "{" ~> stmts <~ "}"
+
+  def assign: Parser[Assignment] = (selector <~ "=") ~ expr ^^
+    { case s ~ ex => Assignment(s, ex)}
+
+  def simpleExpr: Parser[Expr] = (ident ^^ { case  id => Selector(List(id)) }) | ("(" ~> expr <~ ")")
+
+  def ifElse: Parser[IfElse] = ("if" ~> "(" ~> expr <~ ")") ~ (expr) ~ ("else" ~> expr) ^^ 
+    { case cond ~ body ~ elseBody => IfElse(cond, body, elseBody) }
 }

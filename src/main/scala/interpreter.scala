@@ -8,18 +8,33 @@ trait Expr {
 
 case class Func(args: List[String], body: Expr) extends JValue
 
-case object Undefined extends JValue
+case object Undefined extends JValue {
+  override def toString() = "undefined"
+}
 
-case class JObject(var fields: Map[String, JValue]) extends JValue
+case class JObject(var fields: Map[String, JValue]) extends JValue {
+  override def toString() = fields.toString
+}
 
-case class JNumber(x: Double) extends JValue
+case class JNumber(x: Double) extends JValue {
+  override def toString() = x.toString
+}
 
-case class JString(x: String) extends JValue
+case class JString(x: String) extends JValue {
+  override def toString() = x
+}
 
 case class Context(
   val parent: Option[Context],
   var dataSet: Map[String, JValue]
-)
+) {
+  def set(k: String, v: JValue) { dataSet += (k -> v) }
+
+  def get(k: String): JValue = dataSet.getOrElse(k, parent match {
+      case Some(p) => p.get(k)
+      case None => Undefined
+    })
+}
 
 case class Call(func: Expr, args: List[Expr]) extends Expr {
   def eval(context: Context): JValue = {
@@ -32,11 +47,11 @@ case class Call(func: Expr, args: List[Expr]) extends Expr {
 
 case class Selector(ids: List[String]) extends Expr {
   def eval(context: Context) = {
-    context.dataSet(ids.head)
+    context.get(ids.head)
   }
 
   def assign(context: Context, value: JValue) = {
-    context.dataSet = context.dataSet ++ Map(ids.head -> value)
+    context.set(ids.head, value)
   }
 }
 
@@ -61,5 +76,37 @@ case class Assignment(left: Selector, right: Expr) extends Expr {
     val value = right.eval(context)
     left.assign(context, value)
     value
+  }
+}
+
+case class Block(stmts: List[Expr]) extends Expr {
+  def eval(context: Context): JValue = {
+    def eval1(stmts: List[Expr]): JValue = stmts match {
+      case x :: Nil => x.eval(context)
+      case x :: xs => {
+        x.eval(context)
+        eval1(xs)
+      }
+      case Nil => Undefined
+    }
+
+    eval1(stmts)
+  }
+}
+
+case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
+  def eval(context: Context): JValue = {
+    if (toBool(cond.eval(context)))
+      body.eval(context)
+    else
+      elseBody.eval(context)
+  }
+
+  def toBool(value: JValue): Boolean = value match {
+    case JString(x) => x.length > 0
+    case JNumber(x) => x != 0
+    case JObject(flds) => flds.size > 0
+    case Undefined => false
+    case Func(_, _) => true
   }
 }
