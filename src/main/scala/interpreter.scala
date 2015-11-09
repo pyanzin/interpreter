@@ -24,6 +24,10 @@ case class JString(x: String) extends JValue {
   override def toString() = x
 }
 
+case class JArray(xs: List[JValue]) extends JValue {
+  override def toString() = xs.mkString("[", ", ", "]")
+}
+
 case class Context(
   val parent: Option[Context],
   var dataSet: Map[String, JValue]
@@ -109,4 +113,8 @@ case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
     case Undefined => false
     case Func(_, _) => true
   }
+}
+
+case class ArrayExpr(xs: List[Expr]) extends Expr {
+  def eval(context: Context): JValue = JArray(xs.map(_.eval(context)))
 }
