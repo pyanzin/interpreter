@@ -12,6 +12,10 @@ case object Undefined extends JValue {
   override def toString() = "undefined"
 }
 
+case class JBoolean(x: Boolean) extends JValue {
+  override def toString() = x.toString
+}
+
 case class JObject(var fields: Map[String, JValue]) extends JValue {
   override def toString() = fields.toString
 }
@@ -60,14 +64,19 @@ case class Selector(ids: List[String]) extends Expr {
 }
 
 case class Op(op: String, a: Expr, b: Expr) extends Expr {
-  private val ops: Map[String, (Double, Double) => Double] = Map(
-    "+" -> (_+_),
-    "-" -> (_-_),
-    "*" -> (_*_),
-    "/" -> (_/_)
+  private val ops: Map[String, (Double, Double) => JValue] = Map(
+    "+" -> ((a, b) => JNumber(a+b)),
+    "-" -> ((a, b) => JNumber(a-b)),
+    "*" -> ((a, b) => JNumber(a*b)),
+    "/" -> ((a, b) => JNumber(a/b)),
+    "<" -> ((a, b) => JBoolean(a< b)),
+    ">" -> ((a, b) => JBoolean(a>b)),
+    ">=" ->((a, b) => JBoolean(a>=b)),
+    "<=" ->((a, b) => JBoolean(a<=b))
   )
+  
   def eval(context: Context) = (a.eval(context), b.eval(context)) match {
-  	case (JNumber(a), JNumber(b)) => JNumber(ops(op)(a, b))
+  	case (JNumber(a), JNumber(b)) => ops(op)(a, b)
   	case (JString(a), JString(b)) => 
   	  if (op == "+") JString(a + b) 
   	  	else throw new Exception("Incompatable types")
@@ -107,6 +116,7 @@ case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
   }
 
   def toBool(value: JValue): Boolean = value match {
+    case JBoolean(x) => x
     case JString(x) => x.length > 0
     case JNumber(x) => x != 0
     case JObject(flds) => flds.size > 0

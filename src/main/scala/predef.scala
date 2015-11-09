@@ -10,11 +10,17 @@ object JPredef {
 		}
 	})
 
+	val len = Func(List("xs"), new Expr {
+		def eval(context: Context) = {
+			JNumber(context.dataSet("xs").asInstanceOf[JArray].xs.length)		
+		}
+	})
+
 	def getPredef() = Context(
 		None,
-		Map(
-			"readLine" -> readLineF,
-			"writeLine" -> writeLineF
-			)
+		Map("readLine" -> readLineF,
+			"writeLine" -> writeLineF,
+			"len" -> len
+		)
 	)
 }
