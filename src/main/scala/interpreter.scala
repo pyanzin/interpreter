@@ -74,11 +74,11 @@ case class Op(op: String, a: Expr, b: Expr) extends Expr {
     ">=" ->((a, b) => JBoolean(a>=b)),
     "<=" ->((a, b) => JBoolean(a<=b))
   )
-  
+
   def eval(context: Context) = (a.eval(context), b.eval(context)) match {
     case (JNumber(a), JNumber(b)) => ops(op)(a, b)
-    case (JString(a), JString(b)) => 
-      if (op == "+") JString(a + b) 
+    case (JString(a), b: JValue) => 
+      if (op == "+") JString(a + b.toString) 
         else throw new Exception("Incompatable types")
     case _ => throw new Exception("Incompatable types")
   }
@@ -127,4 +127,8 @@ case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
 
 case class ArrayExpr(xs: List[Expr]) extends Expr {
   def eval(context: Context): JValue = JArray(xs.map(_.eval(context)))
+}
+
+case class ObjectExpr(xs: Map[Expr, Expr]) extends Expr {
+  def eval(context: Context): JValue = JObject(xs.map(x => (x._1.eval(context).toString, x._2.eval(context))))
 }
