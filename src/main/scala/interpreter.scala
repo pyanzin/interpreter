@@ -119,6 +119,7 @@ case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
     case JBoolean(x) => x
     case JString(x) => x.length > 0
     case JNumber(x) => x != 0
+    case JArray(xs) => xs.length != 0
     case JObject(flds) => flds.size > 0
     case Undefined => false
     case Func(_, _) => true

@@ -46,8 +46,8 @@ class JParser extends JavaTokenParsers {
 
   def simpleExpr: Parser[Expr] = (ident ^^ { case id => Selector(List(id)) }) | ("(" ~> expr <~ ")") | call | string | bool | number
 
-  def ifElse: Parser[IfElse] = ("if" ~> "(" ~> expr <~ ")") ~ (expr) ~ ("else" ~> expr) ^^ 
-    { case cond ~ body ~ elseBody => IfElse(cond, body, elseBody) }
+  def ifElse: Parser[IfElse] = ("if" ~> "(" ~> expr <~ ")") ~ (expr) ~ opt("else" ~> expr) ^^ 
+    { case cond ~ body ~ (elseBody: Option[Expr]) => IfElse(cond, body, elseBody.getOrElse(Undefined)) }
 
   def arrayExpr: Parser[ArrayExpr] = "[" ~> repsep(expr, ",") <~ "]" ^^
     { case arr => ArrayExpr(arr) }
