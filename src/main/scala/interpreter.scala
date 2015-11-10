@@ -47,8 +47,8 @@ case class Context(
 case class Call(func: Expr, args: List[Expr]) extends Expr {
   def eval(context: Context): JValue = {
     val function = func.eval(context).asInstanceOf[Func]
-  	val dataset = function.args.zipAll(args.map(_.eval(context)), "", Undefined).toMap
-  	val newContext = Context(Some(context), dataset)
+    val dataset = function.args.zipAll(args.map(_.eval(context)), "", Undefined).toMap
+    val newContext = Context(Some(context), dataset)
     function.body.eval(newContext)
   }
 }
@@ -76,11 +76,11 @@ case class Op(op: String, a: Expr, b: Expr) extends Expr {
   )
   
   def eval(context: Context) = (a.eval(context), b.eval(context)) match {
-  	case (JNumber(a), JNumber(b)) => ops(op)(a, b)
-  	case (JString(a), JString(b)) => 
-  	  if (op == "+") JString(a + b) 
-  	  	else throw new Exception("Incompatable types")
-  	case _ => throw new Exception("Incompatable types")
+    case (JNumber(a), JNumber(b)) => ops(op)(a, b)
+    case (JString(a), JString(b)) => 
+      if (op == "+") JString(a + b) 
+        else throw new Exception("Incompatable types")
+    case _ => throw new Exception("Incompatable types")
   }
 }
 
