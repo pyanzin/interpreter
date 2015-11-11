@@ -4,6 +4,16 @@ trait JValue extends Expr {
 
 trait Expr {
   def eval(context: Context): JValue
+  
+  def toBool(value: JValue): Boolean = value match {
+    case JBoolean(x) => x
+    case JString(x) => x.length > 0
+    case JNumber(x) => x != 0
+    case JArray(xs) => xs.length != 0
+    case JObject(flds) => flds.size > 0
+    case Undefined => false
+    case Func(_, _) => true
+  }
 }
 
 case class Func(args: List[String], body: Expr) extends JValue
@@ -114,18 +124,16 @@ case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
     else
       elseBody.eval(context)
   }
-
-  def toBool(value: JValue): Boolean = value match {
-    case JBoolean(x) => x
-    case JString(x) => x.length > 0
-    case JNumber(x) => x != 0
-    case JArray(xs) => xs.length != 0
-    case JObject(flds) => flds.size > 0
-    case Undefined => false
-    case Func(_, _) => true
-  }
 }
 
+case class WhileExpr(cond: Expr, body: Expr) extends Expr {
+  def eval(context: Context): JValue = {
+    while (toBool(cond.eval(context))) {
+      body.eval(context)
+    }
+    Undefined
+  }
+}
 case class ArrayExpr(xs: List[Expr]) extends Expr {
   def eval(context: Context): JValue = JArray(xs.map(_.eval(context)))
 }
