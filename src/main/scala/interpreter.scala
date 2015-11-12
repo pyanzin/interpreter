@@ -16,6 +16,10 @@ trait Expr {
   }
 }
 
+trait LeftHand extends Expr {
+  def assign(context: Context, value: JValue): Unit
+}
+
 case class Func(args: List[String], body: Expr) extends JValue
 
 case object Undefined extends JValue {
@@ -26,8 +30,8 @@ case class JBoolean(x: Boolean) extends JValue {
   override def toString() = x.toString
 }
 
-case class JObject(var fields: Map[String, JValue]) extends JValue {
-  override def toString() = fields.toString
+case class JObject(var fields: Map[JValue, JValue]) extends JValue {
+  override def toString() = fields.map(kv => s"$kv._1 : $kv._2").mkString("{", ",", "}")
 }
 
 case class JNumber(x: Double) extends JValue {
@@ -63,7 +67,7 @@ case class Call(func: Expr, args: List[Expr]) extends Expr {
   }
 }
 
-case class Selector(ids: List[String]) extends Expr {
+case class Selector(ids: List[String]) extends Expr with LeftHand {
   def eval(context: Context) = {
     context.get(ids.head)
   }
@@ -94,7 +98,7 @@ case class Op(op: String, a: Expr, b: Expr) extends Expr {
   }
 }
 
-case class Assignment(left: Selector, right: Expr) extends Expr {
+case class Assignment(left: LeftHand, right: Expr) extends Expr {
   def eval(context: Context) = {
     val value = right.eval(context)
     left.assign(context, value)
@@ -139,5 +143,27 @@ case class ArrayExpr(xs: List[Expr]) extends Expr {
 }
 
 case class ObjectExpr(xs: Map[Expr, Expr]) extends Expr {
-  def eval(context: Context): JValue = JObject(xs.map(x => (x._1.eval(context).toString, x._2.eval(context))))
+  def eval(context: Context): JValue = JObject(xs.map(x => (x._1.eval(context), x._2.eval(context))))
+}
+
+case class Indexer(siteExpr: Expr, argExpr: Expr) extends Expr with LeftHand {
+  def eval(context: Context): JValue = {
+    val site = siteExpr.eval(context)
+    val arg = argExpr.eval(context)
+    site match {
+      case s: JObject => s.fields.getOrElse(arg, Undefined)
+      case s: JArray => s.xs(arg.asInstanceOf[JNumber].x.toInt)
+      case _ => throw new Exception("Incompatable type")
+    }
+  }
+
+  def assign(context: Context, value: JValue) {
+    val site = siteExpr.eval(context)
+    val arg = argExpr.eval(context)
+    site match {
+      case s: JObject => s.fields += (arg -> value)
+      case s: JArray => ???
+      case _ => throw new Exception("Incompatable type")
+    }
+  }
 }

@@ -34,20 +34,25 @@ class JParser extends JavaTokenParsers {
   def op: Parser[Op] = simpleExpr ~ operator ~ expr ^^ 
     { case a ~ op ~ b => Op(op, a, b) }
 
-  def expr[Expr] = func | ifElse | whileExpr | assign | call | block | arrayExpr | objectExpr | op | number | bool | string | selector 
+  def expr[Expr] = func | ifElse | whileExpr | assign | call | block | arrayExpr | objectExpr | op | number | bool | string | selector
 
   def stmts: Parser[Block] = repsep(expr, ";") <~ opt(";") ^^
     { case exprs => Block(exprs) }
 
   def block[Block] = "{" ~> stmts <~ "}"
 
-  def assign: Parser[Assignment] = (selector <~ "=") ~ expr ^^
-    { case s ~ ex => Assignment(s, ex)}
+  def leftHand: Parser[LeftHand] = selector // | indexer
+
+  def indexer: Parser[Indexer] = expr ~ ("[" ~> expr <~ "]") ^^
+    { case site ~ arg => Indexer(site, arg) }
+
+  def assign: Parser[Assignment] = (leftHand <~ "=") ~ expr ^^
+    { case left ~ ex => Assignment(left, ex)}
 
   def simpleExpr: Parser[Expr] = (ident ^^ { case id => Selector(List(id)) }) | ("(" ~> expr <~ ")") | call | string | bool | number
 
   def ifElse: Parser[IfElse] = ("if" ~> "(" ~> expr <~ ")") ~ (expr) ~ opt("else" ~> expr) ^^ 
-    { case cond ~ body ~ (elseBody: Option[Expr]) => IfElse(cond, body, elseBody.getOrElse(Undefined)) }
+    { case cond ~ body ~ elseBody => IfElse(cond, body, elseBody.getOrElse(Undefined)) }
 
   def whileExpr: Parser[WhileExpr] = ("while" ~> "(" ~> expr <~ ")") ~ expr ^^ 
     { case cond ~ body => WhileExpr(cond, body) }
