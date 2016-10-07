@@ -21,7 +21,7 @@ class JParser extends JavaTokenParsers {
     { case k ~ v => (k, v) }
 
   def selector[Selector] = rep1sep(ident, ".") ^^
-    { case xs => Selector(xs.reverse.toList) }
+    { case xs => Selector(xs.toList) }
 
   def call: Parser[Call] = selector ~ ("(" ~> repsep(expr, ",") <~ ")") ^^
     { case ex ~ args => Call(ex, args) }
@@ -29,12 +29,12 @@ class JParser extends JavaTokenParsers {
   def func: Parser[Func] = ("function" ~> "(" ~> repsep(ident, ",") <~ ")" <~ "=") ~ expr ^^
     { case args ~ ex => Func(args, ex) }
 
-  def operator: Parser[String] = "+" | "-" | "*" | "/" | ">" | "<" | "<=" | ">="
+  def operator: Parser[String] = "%" | "+" | "-" | "*" | "/" | "<=" | ">=" | ">" | "<" | "==" | "&&" | "||"
 
   def op: Parser[Op] = simpleExpr ~ operator ~ expr ^^ 
     { case a ~ op ~ b => Op(op, a, b) }
 
-  def expr[Expr] = func | ifElse | whileExpr | assign | call | block | arrayExpr | objectExpr | op | number | bool | string | selector
+  def expr[Expr] = debugger | func | ifElse | whileExpr | assign | call | block | arrayExpr | objectExpr | op | number | bool | string | selector | simpleExpr
 
   def stmts: Parser[Block] = repsep(expr, ";") <~ opt(";") ^^
     { case exprs => Block(exprs) }
@@ -59,5 +59,7 @@ class JParser extends JavaTokenParsers {
 
   def arrayExpr: Parser[ArrayExpr] = "[" ~> repsep(expr, ",") <~ "]" ^^
     { case arr => ArrayExpr(arr) }
+
+  def debugger: Parser[Debugger] = "debugger" ^^ { case _ => Debugger() }
 }
   

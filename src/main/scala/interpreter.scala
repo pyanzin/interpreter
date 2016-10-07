@@ -31,11 +31,11 @@ case class JBoolean(x: Boolean) extends JValue {
 }
 
 case class JObject(var fields: Map[JValue, JValue]) extends JValue {
-  override def toString() = fields.map(kv => s"$kv._1 : $kv._2").mkString("{", ",", "}")
+  override def toString() = fields.map(kv => s"${kv._1} : ${kv._2}").mkString("{", ", ", "}")
 }
 
 case class JNumber(x: Double) extends JValue {
-  override def toString() = x.toString
+  override def toString() = if(x % 1 == 0.0) x.toInt.toString else x.toString
 }
 
 case class JString(x: String) extends JValue {
@@ -78,19 +78,27 @@ case class Selector(ids: List[String]) extends Expr with LeftHand {
 }
 
 case class Op(op: String, a: Expr, b: Expr) extends Expr {
-  private val ops: Map[String, (Double, Double) => JValue] = Map(
-    "+" -> ((a, b) => JNumber(a+b)),
-    "-" -> ((a, b) => JNumber(a-b)),
-    "*" -> ((a, b) => JNumber(a*b)),
-    "/" -> ((a, b) => JNumber(a/b)),
-    "<" -> ((a, b) => JBoolean(a< b)),
-    ">" -> ((a, b) => JBoolean(a>b)),
-    ">=" ->((a, b) => JBoolean(a>=b)),
-    "<=" ->((a, b) => JBoolean(a<=b))
+  private val numberOps: Map[String, (Double, Double) => JValue] = Map(
+    "+" -> ((a, b) => JNumber(a + b)),
+    "-" -> ((a, b) => JNumber(a - b)),
+    "*" -> ((a, b) => JNumber(a * b)),
+    "/" -> ((a, b) => JNumber(a / b)),
+    "<" -> ((a, b) => JBoolean(a < b)),
+    ">" -> ((a, b) => JBoolean(a > b)),
+    ">=" ->((a, b) => JBoolean(a >= b)),
+    "<=" ->((a, b) => JBoolean(a <= b)),
+    "%" -> ((a, b) => JNumber(a % b))
+  )
+
+  private val booleanOps: Map[String, (Boolean, Boolean) => JValue] = Map(
+    "&&" -> ((a, b) => JBoolean(a && b)),
+    "||" -> ((a, b) => JBoolean(a && b))    
   )
 
   def eval(context: Context) = (a.eval(context), b.eval(context)) match {
-    case (JNumber(a), JNumber(b)) => ops(op)(a, b)
+    case (a: JValue, b: JValue) if op == "==" => JBoolean(a == b)
+    case (JBoolean(a), JBoolean(b)) => booleanOps(op)(a, b)
+    case (JNumber(a), JNumber(b)) => numberOps(op)(a, b)
     case (JString(a), b: JValue) => 
       if (op == "+") JString(a + b.toString) 
         else throw new Exception("Incompatable types")
@@ -165,5 +173,29 @@ case class Indexer(siteExpr: Expr, argExpr: Expr) extends Expr with LeftHand {
       case s: JArray => ???
       case _ => throw new Exception("Incompatable type")
     }
+  }
+}
+
+case class Debugger extends Expr {
+  def eval(context: Context): JValue = {
+    println("debugger:\n")
+
+    val parser = new JParser
+
+    while(true) {
+      val input = readLine()
+      if(input.startsWith('\032'.toString)){
+        return Undefined
+      } else {
+        val result = parser.parseProgram(input)
+        if(result.successful){
+          val ast = result.get
+          ast.eval(context)
+        } else {
+          print(result.toString)
+        }        
+      }      
+    }
+    Undefined
   }
 }

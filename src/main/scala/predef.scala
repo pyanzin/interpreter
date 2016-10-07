@@ -11,8 +11,9 @@ object JPredef {
   })
 
   val len = Func(List("xs"), new Expr {
-    def eval(context: Context) = {
-      JNumber(context.dataSet("xs").asInstanceOf[JArray].xs.length)    
+    def eval(context: Context) = context.dataSet("xs") match {
+      case xs: JArray => JNumber(xs.xs.length)
+      case xs: JString => JNumber(xs.toString.length)
     }
   })
 
@@ -40,6 +41,12 @@ object JPredef {
     }
   })
 
+  val number = Func(List("x"), new Expr {
+    def eval(context: Context) = {
+      JNumber(context.dataSet("x").toString.toDouble)
+    }
+  })
+
   def getPredef() = Context(
     None,
     Map("readLine" -> readLineF,
@@ -49,6 +56,7 @@ object JPredef {
       "tail" -> tail,
       "cons" -> cons,
       "str" -> str,
+      "number" -> number,
       "undefined" -> Undefined
     )
   )
