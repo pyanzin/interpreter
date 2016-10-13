@@ -2,24 +2,20 @@
 AST interpreter for JavaScript-like language
 
 ```javascript
-map = function(xs, f) = {
-	if (len(xs)) {
-		cons(f(head(xs)), map(tail(xs), f));
-	} else {
-		[];
-	}
+fold = (z, xs, f) => {
+    if (xs) {
+        fold(f(z, head(xs)), tail(xs), f);
+    }
+    else {
+        z;
+    }
 };
 
-foreach = function(xs, f) = {
-	if (xs) {
-		f(head(xs));
-		foreach(tail(xs), f);
-	}
-};
+xs = [12,3,5,6,8];
 
-xs = [1,2,3,4,5];
+sum = fold(0, xs, (z, x) => z + x);
+production = fold(1, xs, (z, x) => z * x);
 
-ys = map(xs, str);
-
-foreach(ys, writeLine);
+writeLine(sum);
+writeLine(production);
 ```

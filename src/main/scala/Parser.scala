@@ -26,7 +26,7 @@ class JParser extends JavaTokenParsers {
   def call: Parser[Call] = selector ~ ("(" ~> repsep(expr, ",") <~ ")") ^^
     { case ex ~ args => Call(ex, args) }
 
-  def func: Parser[Func] = ("function" ~> "(" ~> repsep(ident, ",") <~ ")" <~ "=") ~ expr ^^
+  def func: Parser[Func] = ("(" ~> repsep(ident, ",") <~ ")" <~ "=>") ~ expr ^^
     { case args ~ ex => Func(args, ex) }
 
   def operator: Parser[String] = "%" | "+" | "-" | "*" | "/" | "<=" | ">=" | ">" | "<" | "==" | "&&" | "||"
