@@ -1,6 +1,8 @@
 import scala.util.parsing.combinator._
 
 class JParser extends JavaTokenParsers {
+  implicit val symbolTable = new SymbolTable(Scope(Set(), Set()))
+
   def parseProgram(s: String) = parseAll(stmts, s)
 
   def string[JString] = stringLiteral ^^
@@ -14,20 +16,25 @@ class JParser extends JavaTokenParsers {
       case _ => JBoolean(false)
   }
 
+  def identifier = ident
+
   def objectExpr: Parser[ObjectExpr] = "{" ~> repsep(objectMember, ",") <~ "}" ^^ 
     { case exprs => ObjectExpr(exprs.toMap) }
 
   def objectMember: Parser[(Expr, Expr)] = (expr) ~ (":" ~> expr) ^^
     { case k ~ v => (k, v) }
 
-  def selector[Selector] = rep1sep(ident, ".") ^^
-    { case xs => Selector(xs.toList) }
+  def selector[Selector] = ident ^^
+    { case x => Selector(x) }
 
   def call: Parser[Call] = selector ~ ("(" ~> repsep(expr, ",") <~ ")") ^^
     { case ex ~ args => Call(ex, args) }
 
-  def func: Parser[Func] = ("(" ~> repsep(ident, ",") <~ ")" <~ "=>") ~ expr ^^
-    { case args ~ ex => Func(args, ex) }
+  def func: Parser[FuncWithClosure] = {
+    symbolTable.enter
+    ("(" ~> repsep(ident, ",") <~ ")" <~ "=>") ~ expr ^^
+      { case args ~ ex => FuncWithClosure(args, ex) }
+  }
 
   def operator: Parser[String] = "%" | "+" | "-" | "*" | "/" | "<=" | ">=" | ">" | "<" | "==" | "&&" | "||"
 
@@ -49,7 +56,7 @@ class JParser extends JavaTokenParsers {
   def assign: Parser[Assignment] = (leftHand <~ "=") ~ expr ^^
     { case left ~ ex => Assignment(left, ex)}
 
-  def simpleExpr: Parser[Expr] = (ident ^^ { case id => Selector(List(id)) }) | ("(" ~> expr <~ ")") | call | string | bool | number
+  def simpleExpr: Parser[Expr] = (ident ^^ { case id => Selector(id) }) | ("(" ~> expr <~ ")") | call | string | bool | number
 
   def ifElse: Parser[IfElse] = ("if" ~> "(" ~> expr <~ ")") ~ (expr) ~ opt("else" ~> expr) ^^ 
     { case cond ~ body ~ elseBody => IfElse(cond, body, elseBody.getOrElse(Undefined)) }

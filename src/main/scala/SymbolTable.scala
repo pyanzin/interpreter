@@ -1,13 +1,21 @@
-case class Scope(var names: Set[String], parent: Scope = null)
+case class Scope(var varsDefined: Set[String], var varsUsed: Set[String], parent: Scope = null)
 
-class SymbolTable(var Scope scope) {
-    def enter {
-        scope = Scope(Set(), scope)
-    }
+case class SymbolTable(var scope: Scope) {
+  def enter {
+    scope = Scope(Set(), Set(), scope)
+  }
 
-    def exit {
-        scope = scope.parent
-    }
+  def exit: Set[String] = {
+    val nonLocals = scope.varsUsed -- scope.varsDefined
+    scope = scope.parent
+    nonLocals
+  }
 
-    def isLocal(id: String) = names(id)
+  def defined(name: String) {
+    scope.varsDefined += name
+  }
+
+  def used(name: String) {
+    scope.varsUsed += name
+  }
 }

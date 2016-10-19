@@ -12,7 +12,8 @@ trait Expr {
     case JArray(xs) => xs.length != 0
     case JObject(flds) => flds.size > 0
     case Undefined => false
-    case Func(_, _) => true
+    case Func(_, _, _) => true
+    case FuncWithClosure(_, _) => true
   }
 }
 
@@ -20,7 +21,14 @@ trait LeftHand extends Expr {
   def assign(context: Context, value: JValue): Unit
 }
 
-case class Func(args: List[String], body: Expr) extends JValue
+case class Func(args: List[String], body: Expr, closure: Map[String, JValue] = Map()) extends JValue
+
+case class FuncWithClosure(args: List[String], body: Expr)(implicit val symbolTable: SymbolTable) extends JValue {
+  args.foreach(x => symbolTable.defined(x))
+  var closureVars = symbolTable.exit
+
+  override def eval(context: Context) = Func(args, body, closureVars.map(x => x -> context.get(x)).toMap)
+}
 
 case object Undefined extends JValue {
   override def toString() = "undefined"
@@ -61,19 +69,21 @@ case class Context(
 case class Call(func: Expr, args: List[Expr]) extends Expr {
   def eval(context: Context): JValue = {
     val function = func.eval(context).asInstanceOf[Func]
-    val dataset = function.args.zipAll(args.map(_.eval(context)), "", Undefined).toMap
+    val dataset = function.args.zipAll(args.map(_.eval(context)), "", Undefined).toMap ++ function.closure
     val newContext = Context(Some(context), dataset)
     function.body.eval(newContext)
   }
 }
 
-case class Selector(ids: List[String]) extends Expr with LeftHand {
+case class Selector(id: String)(implicit val symbolTable: SymbolTable) extends Expr with LeftHand {
+  symbolTable.used(id)
+
   def eval(context: Context) = {
-    context.get(ids.head)
+    context.get(id)
   }
 
   def assign(context: Context, value: JValue) = {
-    context.set(ids.head, value)
+    context.set(id, value)
   }
 }
 
@@ -106,7 +116,11 @@ case class Op(op: String, a: Expr, b: Expr) extends Expr {
   }
 }
 
-case class Assignment(left: LeftHand, right: Expr) extends Expr {
+case class Assignment(left: LeftHand, right: Expr)(implicit val symbolTable: SymbolTable) extends Expr {
+  left match {
+    case Selector(id) => symbolTable.defined(id)
+  }
+
   def eval(context: Context) = {
     val value = right.eval(context)
     left.assign(context, value)
