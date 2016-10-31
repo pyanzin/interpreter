@@ -24,10 +24,13 @@ trait LeftHand extends Expr {
 case class Func(args: List[String], body: Expr, closure: Map[String, JValue] = Map()) extends JValue
 
 case class FuncWithClosure(args: List[String], body: Expr)(implicit val symbolTable: SymbolTable) extends JValue {
-  args.foreach(x => symbolTable.defined(x))
+  args.foreach(symbolTable.defined)
   var closureVars = symbolTable.exit
 
-  override def eval(context: Context) = Func(args, body, closureVars.map(x => x -> context.get(x)).toMap)
+  override def eval(context: Context) = {
+    val closured = closureVars.map(x => x -> context.get(x)).toMap
+    Func(args, body, closured)
+  }
 }
 
 case object Undefined extends JValue {
