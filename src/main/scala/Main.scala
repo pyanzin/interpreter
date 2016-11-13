@@ -8,9 +8,18 @@ object Main extends App {
 
     if (parseResult.successful) {
     	val ast = parseResult.get
+      //ast.visit(fixRecursiveCall)
     	ast.eval(JPredef.getPredef)
     } else {
     	print(parseResult.toString)
     }    
+  }
+
+  def fixRecursiveCall(expr: Expr): Expr = {
+    expr match {
+      case Assignment(Selector(id), FuncWithClosure(args, body, closuredVars))
+         if closuredVars.contains(id) => Assignment(Selector(id), FuncWithClosure(args, body, closuredVars - id))
+      case _ => expr
+    }
   }
 }

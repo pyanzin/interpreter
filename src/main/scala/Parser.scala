@@ -32,7 +32,7 @@ class JParser extends JavaTokenParsers {
 
   def func: Parser[FuncWithClosure] = 
     args ~ expr ^^
-      { case args ~ ex => FuncWithClosure(args, ex) }  
+      { case args ~ ex => FuncWithClosure.make(args, ex) }  
 
   def args: Parser[List[String]] = {
     "(" ~> repsep(ident, ",") <~ ")" <~ "=>" ^^ {
@@ -62,9 +62,9 @@ class JParser extends JavaTokenParsers {
     { case site ~ arg => Indexer(site, arg) }
 
   def assign: Parser[Assignment] = (leftHand <~ "=") ~ expr ^^
-    { case left ~ ex => Assignment(left, ex)}
+    { case left ~ ex => Assignment.make(left, ex)}
 
-  def simpleExpr: Parser[Expr] = (ident ^^ { case id => Selector(id) }) | ("(" ~> expr <~ ")") | call | string | bool | number
+  def simpleExpr: Parser[Expr] = (ident ^^ { case id => Selector.make(id) }) | ("(" ~> expr <~ ")") | call | string | bool | number
 
   def ifElse: Parser[IfElse] = ("if" ~> "(" ~> expr <~ ")") ~ (expr) ~ opt("else" ~> expr) ^^ 
     { case cond ~ body ~ elseBody => IfElse(cond, body, elseBody.getOrElse(Undefined)) }

@@ -5,6 +5,8 @@ trait JValue extends Expr {
 trait Expr {
   def eval(context: Context): JValue
   
+  def visit(modifier: Function[Expr, Expr]): Expr = modifier(this)
+
   def toBool(value: JValue): Boolean = value match {
     case JBoolean(x) => x
     case JString(x) => x.length > 0
@@ -13,7 +15,7 @@ trait Expr {
     case JObject(flds) => flds.size > 0
     case Undefined => false
     case Func(_, _, _) => true
-    case FuncWithClosure(_, _) => true
+    case FuncWithClosure(_, _, _) => true
   }
 }
 
@@ -23,13 +25,22 @@ trait LeftHand extends Expr {
 
 case class Func(args: List[String], body: Expr, closure: Map[String, JValue] = Map()) extends JValue
 
-case class FuncWithClosure(args: List[String], body: Expr)(implicit val symbolTable: SymbolTable) extends JValue {
-  args.foreach(symbolTable.defined)
-  var closureVars = symbolTable.exit
+object FuncWithClosure {
+  def make(args: List[String], body: Expr)(implicit symbolTable: SymbolTable): FuncWithClosure = {
+    args.foreach(symbolTable.defined)
+    var closureVars = symbolTable.exit
+    FuncWithClosure(args, body, closureVars)
+  }
+}
 
+case class FuncWithClosure(args: List[String], body: Expr, closureVars: Set[String]) extends JValue {
   override def eval(context: Context) = {
     val closured = closureVars.map(x => x -> context.get(x)).toMap
     Func(args, body, closured)
+  }
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = {
+    FuncWithClosure(args, modifier(body.visit(modifier)), closureVars)
   }
 }
 
@@ -76,11 +87,20 @@ case class Call(func: Expr, args: List[Expr]) extends Expr {
     val newContext = Context(Some(context), dataset)
     function.body.eval(newContext)
   }
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = {
+    Call(modifier(func.visit(modifier)), args.map(_.visit(modifier)))
+  }
 }
 
-case class Selector(id: String)(implicit val symbolTable: SymbolTable) extends Expr with LeftHand {
-  symbolTable.used(id)
+object Selector {
+  def make(id: String)(implicit symbolTable: SymbolTable) = {
+    symbolTable.used(id)
+    Selector(id)
+  }
+}
 
+case class Selector(id: String) extends Expr with LeftHand {
   def eval(context: Context) = {
     context.get(id)
   }
@@ -117,13 +137,23 @@ case class Op(op: String, a: Expr, b: Expr) extends Expr {
         else throw new Exception("Incompatable types")
     case _ => throw new Exception("Incompatable types")
   }
+
+  override def visit(modifier: Function[Expr, Expr]) = {
+    Op(op, modifier(a.visit(modifier)), modifier(a.visit(modifier)))
+  }
 }
 
-case class Assignment(left: LeftHand, right: Expr)(implicit val symbolTable: SymbolTable) extends Expr {
-  left match {
-    case Selector(id) => symbolTable.defined(id)
-  }
+object Assignment {
+  def make(left: LeftHand, right: Expr)(implicit symbolTable: SymbolTable) = {
+    left match {
+      case Selector(id) => symbolTable.defined(id)
+    }
 
+    Assignment(left, right)
+  }
+}
+
+case class Assignment(left: LeftHand, right: Expr) extends Expr {
   def eval(context: Context) = {
     val value = right.eval(context)
     left.assign(context, value)
@@ -144,6 +174,8 @@ case class Block(stmts: List[Expr]) extends Expr {
 
     eval1(stmts)
   }
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = Block(stmts.map(x => modifier(x.visit(modifier))))
 }
 
 case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
@@ -153,6 +185,10 @@ case class IfElse(cond: Expr, body: Expr, elseBody: Expr) extends Expr {
     else
       elseBody.eval(context)
   }
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = 
+    IfElse(modifier(cond.visit(modifier)), modifier(body.visit(modifier)), modifier(elseBody.visit(modifier)))
+
 }
 
 case class WhileExpr(cond: Expr, body: Expr) extends Expr {
@@ -162,13 +198,23 @@ case class WhileExpr(cond: Expr, body: Expr) extends Expr {
     }
     Undefined
   }
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = 
+    WhileExpr(modifier(cond.visit(modifier)), modifier(body.visit(modifier)))
 }
+
 case class ArrayExpr(xs: List[Expr]) extends Expr {
   def eval(context: Context): JValue = JArray(xs.map(_.eval(context)))
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = 
+    ArrayExpr(xs.map(_.visit(modifier)))
 }
 
 case class ObjectExpr(xs: Map[Expr, Expr]) extends Expr {
   def eval(context: Context): JValue = JObject(xs.map(x => (x._1.eval(context), x._2.eval(context))))
+
+  override def visit(modifier: Function[Expr, Expr]): Expr = 
+    ObjectExpr(xs.map(x => modifier(x._1.visit(modifier)) -> modifier(x._2.visit(modifier))))
 }
 
 case class Indexer(siteExpr: Expr, argExpr: Expr) extends Expr with LeftHand {

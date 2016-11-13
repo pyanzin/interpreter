@@ -12,7 +12,7 @@ case class SymbolTable(var scope: Scope) {
   }
 
   def defined(name: String) {
-    scope.varsDefined += name
+      scope.varsDefined += name
   }
 
   def used(name: String) {
